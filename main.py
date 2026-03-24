@@ -20,6 +20,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from rich.console import Console
 from rich.panel import Panel
+from rich.align import Align
 from rich.progress import Progress, SpinnerColumn, TextColumn, TimeElapsedColumn
 from rich.text import Text
 from rich import print as rprint
@@ -28,12 +29,15 @@ load_dotenv()
 
 console = Console()
 
-BANNER = """
-[bold cyan]╔═══════════════════════════════════════════════════════╗[/bold cyan]
-[bold cyan]║      🔬 AI Research Paper Analyzer                   ║[/bold cyan]
-[bold cyan]║         Three-Pass Approach | Powered by Claude      ║[/bold cyan]
-[bold cyan]╚═══════════════════════════════════════════════════════╝[/bold cyan]
-"""
+def _print_banner():
+    console.print(Panel(
+        Align.center(
+            "[bold cyan]🔬 AI Research Paper Analyzer[/bold cyan]\n"
+            "[cyan]Three-Pass Approach | Powered by Claude[/cyan]"
+        ),
+        border_style="cyan",
+        padding=(0, 4),
+    ))
 
 PASS_LABELS = {
     "pass1": "[bold yellow]Pass 1[/bold yellow]: Quick Scan (개요 파악) ...",
@@ -93,11 +97,13 @@ def run(source: str):
     title = paper_data.get("title") or "제목 없음"
     authors = paper_data.get("authors", [])
     text_len = len(paper_data.get("text", ""))
+    fig_count = len(paper_data.get("figures", []))
 
     console.print(Panel(
         f"[bold]{title}[/bold]\n"
         + (f"[dim]{', '.join(authors[:3])}{'...' if len(authors) > 3 else ''}[/dim]\n" if authors else "")
-        + f"\n[green]텍스트 추출 완료[/green]: {text_len:,} 자",
+        + f"\n[green]텍스트 추출 완료[/green]: {text_len:,} 자"
+        + (f"\n[green]Figure 추출 완료[/green]: {fig_count}개 (Pass 2에서 Vision 분석)" if fig_count else "\n[dim]Figure 없음 또는 추출 불가[/dim]"),
         title="논문 정보",
         border_style="cyan",
     ))
@@ -159,7 +165,7 @@ def run(source: str):
 
 
 def main():
-    console.print(BANNER)
+    _print_banner()
 
     args = parse_args()
     source = args.source
