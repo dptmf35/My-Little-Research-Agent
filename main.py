@@ -43,7 +43,7 @@ PASS_LABELS = {
     "pass1": "[bold yellow]Pass 1[/bold yellow]: Quick Scan (개요 파악) ...",
     "pass2": "[bold blue]Pass 2[/bold blue]: Structural Understanding (구조 파악) ...",
     "pass3": "[bold magenta]Pass 3[/bold magenta]: Deep Dive (심층 분석) ...",
-    "integrated": "[bold green]통합 리뷰[/bold green]: Integrated Review 생성 중 ...",
+    "integrated": "[bold green]통합 리뷰[/bold green]: Integrated Review 병렬 생성 중 (3 파트) ...",
 }
 
 

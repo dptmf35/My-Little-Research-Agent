@@ -9,6 +9,8 @@ Three-Pass Approach:
 """
 
 import os
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import anthropic
 from dotenv import load_dotenv
 
@@ -19,7 +21,7 @@ MAX_TOKENS = {
     "pass1": 4096,
     "pass2": 5120,
     "pass3": 6144,
-    "integrated": 8192,
+    "integrated_part": 4096,   # 파트별 (3개 병렬)
 }
 MAX_CONTINUATIONS = 3  # 최대 이어쓰기 횟수
 
@@ -94,16 +96,17 @@ Pass 2 요약: {{pass2_result}}
 
 PASS3_PROMPT = PASS3_PROMPT.format(format_rules=_FORMAT_RULES).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{text}}", "{text}")
 
-INTEGRATED_REVIEW_PROMPT = """당신은 논문을 체계적으로 읽는 AI 연구자입니다. 세 번의 패스 분석을 바탕으로 최종 통합 리뷰를 작성합니다.
+_INTEGRATED_BASE = """당신은 논문을 체계적으로 읽는 AI 연구자입니다. 세 번의 패스 분석을 바탕으로 통합 리뷰의 일부를 작성합니다.
 {format_rules}
-[통합 리뷰 작성]
 Pass 1 분석: {{pass1_result}}
 Pass 2 분석: {{pass2_result}}
 Pass 3 분석: {{pass3_result}}
 
-위 세 패스의 분석을 통합하여 아래 형식으로 완전한 논문 리뷰를 작성하세요.
-각 섹션 헤딩은 ## 레벨을 사용하세요 (통합 리뷰 섹션의 서브섹션이므로 ## 사용):
+위 분석을 바탕으로 아래 섹션들만 작성하세요. 각 섹션 헤딩은 ## 레벨을 사용하세요.
+"""
 
+# 병렬 실행할 3개 파트
+INTEGRATED_PART_A = (_INTEGRATED_BASE + """
 ## 📋 논문 기본 정보
 (제목, 저자, 발표 연도/학회/저널, arXiv ID 등)
 
@@ -114,11 +117,13 @@ Pass 3 분석: {{pass3_result}}
 (이 논문의 핵심 기여와 독창성)
 
 ## 📚 관련 연구 (Related Work)
-(기존 연구들과의 관계, 차별점)
+(기존 연구들과의 관계, 차별점)""").format(format_rules=_FORMAT_RULES).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
 
+INTEGRATED_PART_B = (_INTEGRATED_BASE + """
 ## 🔬 제안 방법론 (Proposed Method)
-(방법론 상세, 수식/알고리즘/아키텍처 설명)
+(방법론 상세, 핵심 수식/알고리즘/아키텍처, 설계 선택의 이유)""").format(format_rules=_FORMAT_RULES).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
 
+INTEGRATED_PART_C = (_INTEGRATED_BASE + """
 ## 📊 실험 (Experiments)
 (실험 설정, 주요 결과, ablation study)
 
@@ -126,9 +131,7 @@ Pass 3 분석: {{pass3_result}}
 (연구 요약, 한계점, 향후 연구)
 
 ## ⭐ 총평
-(이 논문의 전체적인 평가, 읽어야 할 독자층)"""
-
-INTEGRATED_REVIEW_PROMPT = INTEGRATED_REVIEW_PROMPT.format(format_rules=_FORMAT_RULES).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
+(이 논문의 전체적인 평가, 읽어야 할 독자층)""").format(format_rules=_FORMAT_RULES).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
 
 
 def _get_client() -> anthropic.Anthropic:
@@ -232,17 +235,31 @@ def analyze_paper(paper_data: dict, progress_callback=None) -> dict:
         MAX_TOKENS["pass3"],
     )
 
-    # --- Integrated Review ---
+    # --- Integrated Review (3개 파트 병렬 실행) ---
     if progress_callback:
         progress_callback("integrated")
-    results["integrated_review"] = _call_claude(
-        client,
-        INTEGRATED_REVIEW_PROMPT.format(
-            pass1_result=results["pass1"],
-            pass2_result=results["pass2"],
-            pass3_result=results["pass3"],
-        ),
-        MAX_TOKENS["integrated"],
+
+    fmt = dict(
+        pass1_result=results["pass1"],
+        pass2_result=results["pass2"],
+        pass3_result=results["pass3"],
+    )
+    parts = {
+        "A": INTEGRATED_PART_A.format(**fmt),
+        "B": INTEGRATED_PART_B.format(**fmt),
+        "C": INTEGRATED_PART_C.format(**fmt),
+    }
+    part_results = {}
+    with ThreadPoolExecutor(max_workers=3) as executor:
+        futures = {
+            executor.submit(_call_claude, client, prompt, MAX_TOKENS["integrated_part"]): key
+            for key, prompt in parts.items()
+        }
+        for future in as_completed(futures):
+            part_results[futures[future]] = future.result()
+
+    results["integrated_review"] = (
+        part_results["A"] + "\n\n" + part_results["B"] + "\n\n" + part_results["C"]
     )
 
     return results
