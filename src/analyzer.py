@@ -21,7 +21,7 @@ MAX_TOKENS = {
     "pass3": 6144,
     "integrated": 8192,
 }
-_TRUNCATED_NOTICE = "\n\n> ⚠️ **[내용 잘림]** 토큰 한도에 도달하여 응답이 중간에 끊겼습니다."
+MAX_CONTINUATIONS = 3  # 최대 이어쓰기 횟수
 
 _FORMAT_RULES = """
 ## 마크다운 포맷 규칙 (반드시 준수)
@@ -135,18 +135,30 @@ def _get_client() -> anthropic.Anthropic:
 
 
 def _call_claude(client: anthropic.Anthropic, prompt: str, max_tokens: int) -> str:
-    """Make a single Claude API call and return the text response."""
-    message = client.messages.create(
-        model=MODEL,
-        max_tokens=max_tokens,
-        messages=[
-            {"role": "user", "content": prompt}
-        ],
-    )
-    text = message.content[0].text
-    if message.stop_reason == "max_tokens":
-        text += _TRUNCATED_NOTICE
-    return text
+    """
+    Claude API 호출. 응답이 max_tokens에 도달하면 자동으로 이어쓰기 요청.
+    최대 MAX_CONTINUATIONS번 반복하여 완전한 응답을 반환한다.
+    """
+    messages = [{"role": "user", "content": prompt}]
+    full_text = ""
+
+    for attempt in range(1 + MAX_CONTINUATIONS):
+        message = client.messages.create(
+            model=MODEL,
+            max_tokens=max_tokens,
+            messages=messages,
+        )
+        chunk = message.content[0].text
+        full_text += chunk
+
+        if message.stop_reason != "max_tokens":
+            break
+
+        # 이어쓰기: 지금까지의 응답을 assistant 턴으로 넣고 계속 요청
+        messages.append({"role": "assistant", "content": chunk})
+        messages.append({"role": "user", "content": "방금 작성하다 멈춘 부분부터 자연스럽게 이어서 계속 작성해주세요."})
+
+    return full_text
 
 
 def analyze_paper(paper_data: dict, progress_callback=None) -> dict:
