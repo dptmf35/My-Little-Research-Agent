@@ -9,6 +9,7 @@ Three-Pass Approach:
 """
 
 import os
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import anthropic
@@ -158,17 +159,34 @@ def _get_client() -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=api_key)
 
 
+_RETRY_WAIT = [15, 30, 60, 120]  # 429 발생 시 대기 시간 (초)
+
+
+def _create_message(client: anthropic.Anthropic, messages: list, max_tokens: int):
+    """429 Rate Limit 에러 시 지수 백오프로 재시도."""
+    for attempt, wait in enumerate([0] + _RETRY_WAIT):
+        if wait:
+            print(f"\n  ⏳ Rate limit 도달. {wait}초 후 재시도... ({attempt}/{len(_RETRY_WAIT)})")
+            time.sleep(wait)
+        try:
+            return client.messages.create(
+                model=MODEL,
+                max_tokens=max_tokens,
+                messages=messages,
+            )
+        except anthropic.RateLimitError:
+            if attempt == len(_RETRY_WAIT):
+                raise
+    raise RuntimeError("재시도 횟수 초과")
+
+
 def _call_claude(client: anthropic.Anthropic, prompt: str, max_tokens: int,
                  figures: list = None) -> str:
     """
     Claude API 호출 (텍스트 + 선택적 이미지).
     응답이 max_tokens에 도달하면 자동으로 이어쓰기 요청.
-    최대 MAX_CONTINUATIONS번 반복하여 완전한 응답을 반환한다.
-
-    Args:
-        figures: fetcher에서 추출한 figure 리스트. 있으면 멀티모달 요청.
+    429 Rate Limit 에러는 지수 백오프로 자동 재시도.
     """
-    # 첫 번째 user 메시지 content 구성
     if figures:
         content = [{"type": "text", "text": prompt}]
         for i, fig in enumerate(figures):
@@ -191,11 +209,7 @@ def _call_claude(client: anthropic.Anthropic, prompt: str, max_tokens: int,
     full_text = ""
 
     for _ in range(1 + MAX_CONTINUATIONS):
-        message = client.messages.create(
-            model=MODEL,
-            max_tokens=max_tokens,
-            messages=messages,
-        )
+        message = _create_message(client, messages, max_tokens)
         chunk = message.content[0].text
         full_text += chunk
 
