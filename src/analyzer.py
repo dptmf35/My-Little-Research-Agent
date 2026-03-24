@@ -36,6 +36,19 @@ _FORMAT_RULES = """
   예: | 열1 | 열2 | 열3 |\\n|:---|:---:|---:|
 """
 
+# 통합 리뷰 전용 포맷 규칙: ## 허용 (통합 리뷰의 최상위 섹션에 사용)
+_FORMAT_RULES_INTEGRATED = """
+## 마크다운 포맷 규칙 (반드시 준수)
+- 응답 맨 앞에 제목(타이틀)을 쓰지 마세요. 내용부터 바로 시작하세요.
+- 최상위 섹션 헤딩은 반드시 ## 레벨을 사용하세요. (# 사용 금지)
+- 서브 섹션은 ### 또는 #### 을 사용하세요.
+- 섹션 구분에 --- 수평선을 사용하지 마세요. 빈 줄로만 구분하세요.
+- 수식: 별도 줄 수식은 $$...$$, 인라인 수식은 $...$  형식을 사용하세요.
+- 아키텍처 다이어그램/ASCII 아트는 반드시 ```text ... ``` 코드 블록 안에 작성하세요.
+- 표(테이블)는 표준 마크다운 형식을 사용하고, 헤더 구분자에 정렬을 명시하세요.
+  예: | 열1 | 열2 | 열3 |\\n|:---|:---:|---:|
+"""
+
 PASS1_PROMPT = """당신은 논문을 체계적으로 읽는 AI 연구자입니다. Three-Pass Approach의 첫 번째 패스를 수행합니다.
 {format_rules}
 [Pass 1: Quick Scan - 5분 훑어보기]
@@ -117,11 +130,11 @@ INTEGRATED_PART_A = (_INTEGRATED_BASE + """
 (이 논문의 핵심 기여와 독창성)
 
 ## 📚 관련 연구 (Related Work)
-(기존 연구들과의 관계, 차별점)""").format(format_rules=_FORMAT_RULES).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
+(기존 연구들과의 관계, 차별점)""").format(format_rules=_FORMAT_RULES_INTEGRATED).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
 
 INTEGRATED_PART_B = (_INTEGRATED_BASE + """
 ## 🔬 제안 방법론 (Proposed Method)
-(방법론 상세, 핵심 수식/알고리즘/아키텍처, 설계 선택의 이유)""").format(format_rules=_FORMAT_RULES).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
+(방법론 상세, 핵심 수식/알고리즘/아키텍처, 설계 선택의 이유)""").format(format_rules=_FORMAT_RULES_INTEGRATED).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
 
 INTEGRATED_PART_C = (_INTEGRATED_BASE + """
 ## 📊 실험 (Experiments)
@@ -131,7 +144,7 @@ INTEGRATED_PART_C = (_INTEGRATED_BASE + """
 (연구 요약, 한계점, 향후 연구)
 
 ## ⭐ 총평
-(이 논문의 전체적인 평가, 읽어야 할 독자층)""").format(format_rules=_FORMAT_RULES).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
+(이 논문의 전체적인 평가, 읽어야 할 독자층)""").format(format_rules=_FORMAT_RULES_INTEGRATED).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
 
 
 def _get_client() -> anthropic.Anthropic:
