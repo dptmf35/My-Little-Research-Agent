@@ -51,19 +51,25 @@ def format_and_save(paper_data: dict, analysis: dict) -> str:
     source = paper_data.get("source", "")
     authors = paper_data.get("authors", [])
     arxiv_id = paper_data.get("arxiv_id")
+    published = paper_data.get("published")   # datetime or None
+    venue = paper_data.get("venue", "")
     analyzed_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     authors_str = ", ".join(authors) if authors else "Unknown"
-    source_display = source
 
     # Build metadata block
     meta_lines = [
-        f"> **Source**: {source_display}  ",
+        f"> **Source**: {source}  ",
         f"> **Analyzed**: {analyzed_at}  ",
         f"> **Method**: Three-Pass Approach  ",
     ]
     if arxiv_id:
         meta_lines.append(f"> **arXiv ID**: [{arxiv_id}](https://arxiv.org/abs/{arxiv_id})  ")
+    if published:
+        year = published.year
+        meta_lines.append(f"> **Published**: {published.strftime('%Y-%m-%d')} ({year})  ")
+    if venue:
+        meta_lines.append(f"> **Venue**: {venue}  ")
     if authors:
         meta_lines.append(f"> **Authors**: {authors_str}  ")
 

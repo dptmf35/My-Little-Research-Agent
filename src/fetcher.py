@@ -89,6 +89,8 @@ def fetch_paper(source: str) -> dict:
         "authors": [],
         "abstract": "",
         "arxiv_id": None,
+        "published": None,   # datetime object
+        "venue": "",         # journal/conference name
     }
 
     source = source.strip()
@@ -109,6 +111,8 @@ def fetch_paper(source: str) -> dict:
             result["title"] = paper_meta.title
             result["authors"] = [str(a) for a in paper_meta.authors]
             result["abstract"] = paper_meta.summary.replace("\n", " ")
+            result["published"] = paper_meta.published  # datetime
+            result["venue"] = getattr(paper_meta, "journal_ref", "") or ""
 
         # Download the PDF
         pdf_url = f"https://arxiv.org/pdf/{arxiv_id}"

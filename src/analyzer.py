@@ -15,7 +15,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 MODEL = "claude-sonnet-4-6"
-MAX_TOKENS_PER_PASS = 6144
+MAX_TOKENS = {
+    "pass1": 4096,
+    "pass2": 5120,
+    "pass3": 6144,
+    "integrated": 8192,
+}
+_TRUNCATED_NOTICE = "\n\n> ⚠️ **[내용 잘림]** 토큰 한도에 도달하여 응답이 중간에 끊겼습니다."
 
 _FORMAT_RULES = """
 ## 마크다운 포맷 규칙 (반드시 준수)
@@ -128,16 +134,19 @@ def _get_client() -> anthropic.Anthropic:
     return anthropic.Anthropic(api_key=api_key)
 
 
-def _call_claude(client: anthropic.Anthropic, prompt: str) -> str:
+def _call_claude(client: anthropic.Anthropic, prompt: str, max_tokens: int) -> str:
     """Make a single Claude API call and return the text response."""
     message = client.messages.create(
         model=MODEL,
-        max_tokens=MAX_TOKENS_PER_PASS,
+        max_tokens=max_tokens,
         messages=[
             {"role": "user", "content": prompt}
         ],
     )
-    return message.content[0].text
+    text = message.content[0].text
+    if message.stop_reason == "max_tokens":
+        text += _TRUNCATED_NOTICE
+    return text
 
 
 def analyze_paper(paper_data: dict, progress_callback=None) -> dict:
@@ -158,36 +167,37 @@ def analyze_paper(paper_data: dict, progress_callback=None) -> dict:
     # --- Pass 1 ---
     if progress_callback:
         progress_callback("pass1")
-    pass1_prompt = PASS1_PROMPT.format(text=text)
-    results["pass1"] = _call_claude(client, pass1_prompt)
+    results["pass1"] = _call_claude(client, PASS1_PROMPT.format(text=text), MAX_TOKENS["pass1"])
 
     # --- Pass 2 ---
     if progress_callback:
         progress_callback("pass2")
-    pass2_prompt = PASS2_PROMPT.format(
-        pass1_result=results["pass1"],
-        text=text,
+    results["pass2"] = _call_claude(
+        client,
+        PASS2_PROMPT.format(pass1_result=results["pass1"], text=text),
+        MAX_TOKENS["pass2"],
     )
-    results["pass2"] = _call_claude(client, pass2_prompt)
 
     # --- Pass 3 ---
     if progress_callback:
         progress_callback("pass3")
-    pass3_prompt = PASS3_PROMPT.format(
-        pass1_result=results["pass1"],
-        pass2_result=results["pass2"],
-        text=text,
+    results["pass3"] = _call_claude(
+        client,
+        PASS3_PROMPT.format(pass1_result=results["pass1"], pass2_result=results["pass2"], text=text),
+        MAX_TOKENS["pass3"],
     )
-    results["pass3"] = _call_claude(client, pass3_prompt)
 
     # --- Integrated Review ---
     if progress_callback:
         progress_callback("integrated")
-    integrated_prompt = INTEGRATED_REVIEW_PROMPT.format(
-        pass1_result=results["pass1"],
-        pass2_result=results["pass2"],
-        pass3_result=results["pass3"],
+    results["integrated_review"] = _call_claude(
+        client,
+        INTEGRATED_REVIEW_PROMPT.format(
+            pass1_result=results["pass1"],
+            pass2_result=results["pass2"],
+            pass3_result=results["pass3"],
+        ),
+        MAX_TOKENS["integrated"],
     )
-    results["integrated_review"] = _call_claude(client, integrated_prompt)
 
     return results
