@@ -294,17 +294,18 @@ def analyze_paper(paper_data: dict, progress_callback=None) -> dict:
     if progress_callback:
         progress_callback("integrated")
 
+    # Figure 조건부: figures가 있으면 Figure 분석 섹션을 Part B에 삽입
+    figure_section = _FIGURE_SECTION if figures else ""
+
     fmt = dict(
         pass1_result=results["pass1"],
         pass2_result=results["pass2"],
         pass3_result=results["pass3"],
+        figure_section=figure_section,
     )
 
-    # Figure 조건부: figures가 있으면 Figure 분석 섹션을 Part B에 삽입
-    figure_section = _FIGURE_SECTION if figures else ""
     integrated_part_b = _INTEGRATED_PART_B_TEMPLATE.format(
         format_rules=_FORMAT_RULES_INTEGRATED,
-        figure_section=figure_section,
     ).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
 
     parts = {
