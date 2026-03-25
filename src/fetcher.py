@@ -128,7 +128,7 @@ def _parse_arxiv_id(url: str) -> Optional[str]:
     return None
 
 
-def fetch_paper(source: str) -> dict:
+def fetch_paper(source: str, extract_figures: bool = True) -> dict:
     """
     Fetch a paper from arXiv URL, direct PDF URL, or local file path.
 
@@ -179,7 +179,8 @@ def fetch_paper(source: str) -> dict:
         tmp_path = _download_pdf(pdf_url)
         try:
             result["text"] = _extract_text_from_pdf(tmp_path)
-            result["figures"] = _extract_figures(tmp_path)
+            if extract_figures:
+                result["figures"] = _extract_figures(tmp_path)
         finally:
             os.unlink(tmp_path)
 
@@ -188,7 +189,8 @@ def fetch_paper(source: str) -> dict:
         tmp_path = _download_pdf(source)
         try:
             result["text"] = _extract_text_from_pdf(tmp_path)
-            result["figures"] = _extract_figures(tmp_path)
+            if extract_figures:
+                result["figures"] = _extract_figures(tmp_path)
         finally:
             os.unlink(tmp_path)
 
@@ -210,7 +212,8 @@ def fetch_paper(source: str) -> dict:
 
         result["source"] = str(local_path)
         result["text"] = _extract_text_from_pdf(str(local_path))
-        result["figures"] = _extract_figures(str(local_path))
+        if extract_figures:
+            result["figures"] = _extract_figures(str(local_path))
 
         # Try to extract title from first page text
         lines = result["text"].split("\n")

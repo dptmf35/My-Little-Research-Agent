@@ -58,6 +58,11 @@ def parse_args():
         nargs="?",
         help="arXiv URL, PDF URL, or local PDF file path",
     )
+    parser.add_argument(
+        "--no-vision",
+        action="store_true",
+        help="Skip figure extraction and Vision analysis (faster, uses fewer tokens)",
+    )
     return parser.parse_args()
 
 
@@ -74,16 +79,18 @@ def get_source_interactively() -> str:
     return source
 
 
-def run(source: str):
+def run(source: str, no_vision: bool = False):
     from src.fetcher import fetch_paper
     from src.analyzer import analyze_paper
     from src.formatter import format_and_save
 
     # --- Step 1: Fetch paper ---
     console.print(f"\n[bold]📥 논문 가져오는 중...[/bold] [dim]{source}[/dim]")
+    if no_vision:
+        console.print("[dim]--no-vision: Figure 추출 및 Vision 분석 건너뜀[/dim]")
     try:
         with console.status("[cyan]PDF 다운로드 및 텍스트 추출 중...[/cyan]", spinner="dots"):
-            paper_data = fetch_paper(source)
+            paper_data = fetch_paper(source, extract_figures=not no_vision)
     except FileNotFoundError as e:
         console.print(f"[red]파일 오류:[/red] {e}")
         sys.exit(1)
@@ -173,7 +180,7 @@ def main():
     if not source:
         source = get_source_interactively()
 
-    run(source)
+    run(source, no_vision=args.no_vision)
 
 
 if __name__ == "__main__":

@@ -19,6 +19,9 @@ cp .env.example .env
 
 # 3. 실행
 python3 main.py https://arxiv.org/abs/1706.03762
+
+# Vision 분석 없이 실행 (토큰 절약, 속도 향상)
+python3 main.py https://arxiv.org/abs/1706.03762 --no-vision
 ```
 
 결과는 `reviews/arxiv_1706.03762.md` 에 저장됩니다.
@@ -188,6 +191,12 @@ My-Little-Research-Agent/
 ### CLI (`main.py`)
 
 `rich` 라이브러리로 진행 상황을 표시합니다.
+
+**옵션:**
+
+| 옵션 | 설명 |
+|:-----|:-----|
+| `--no-vision` | Figure 추출 및 Vision 분석 건너뜀. 토큰 절약 및 Rate Limit 방지에 유용. |
 
 ```
 ╭─────────────────────────────────╮
