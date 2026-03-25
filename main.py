@@ -153,7 +153,7 @@ def run(source: str, no_vision: bool = False):
             progress.update(current_task_id, completed=True)
             progress.stop_task(current_task_id)
 
-    console.print("\n[green]✓[/green] 모든 패스 완료!\n")
+    console.print("\n[green]✓[/green] 분석 완료!\n")
 
     # --- Step 3: Save ---
     console.print("[bold]💾 결과 저장 중...[/bold]")

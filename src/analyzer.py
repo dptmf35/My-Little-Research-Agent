@@ -22,7 +22,7 @@ MAX_TOKENS = {
     "pass1": 4096,
     "pass2": 5120,
     "pass3": 6144,
-    "integrated_part": 4096,   # 파트별 (3개 병렬)
+    "integrated_part": 5120,   # 파트별 (3개 병렬)
 }
 MAX_CONTINUATIONS = 3  # 최대 이어쓰기 횟수
 
@@ -116,7 +116,13 @@ Pass 1 분석: {{pass1_result}}
 Pass 2 분석: {{pass2_result}}
 Pass 3 분석: {{pass3_result}}
 
-위 분석을 바탕으로 아래 섹션들만 작성하세요. 각 섹션 헤딩은 ## 레벨을 사용하세요.
+중요 지침:
+- 위 분석 결과는 참고 자료입니다. 그대로 복사하거나 반복하지 마세요.
+- 세 번의 분석에서 얻은 인사이트를 통합하여, 독자가 이 하나의 리뷰만으로 논문을 완전히 이해할 수 있도록 작성하세요.
+- 핵심 수식, 알고리즘, 아키텍처는 반드시 상세히 포함하세요 (단순 언급이 아닌, 수식 전개와 설명).
+- "Pass 1", "Pass 2", "Pass 3" 등 분석 단계를 언급하지 마세요.
+
+아래 섹션들만 작성하세요. 각 섹션 헤딩은 ## 레벨을 사용하세요.
 """
 
 # 병렬 실행할 3개 파트
@@ -133,19 +139,41 @@ INTEGRATED_PART_A = (_INTEGRATED_BASE + """
 ## 📚 관련 연구 (Related Work)
 (기존 연구들과의 관계, 차별점)""").format(format_rules=_FORMAT_RULES_INTEGRATED).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
 
-INTEGRATED_PART_B = (_INTEGRATED_BASE + """
+_INTEGRATED_PART_B_TEMPLATE = (_INTEGRATED_BASE + """
 ## 🔬 제안 방법론 (Proposed Method)
-(방법론 상세, 핵심 수식/알고리즘/아키텍처, 설계 선택의 이유)""").format(format_rules=_FORMAT_RULES_INTEGRATED).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
+다음을 반드시 포함하여 상세히 작성하세요:
+- 핵심 수식: 논문의 주요 수식을 $$...$$ 형식으로 정확히 기술하고, 각 변수의 의미를 설명
+- 알고리즘: 핵심 알고리즘의 단계별 설명 (pseudo-code 또는 단계별 기술)
+- 아키텍처: 모델/시스템의 구조 설명 (필요시 ```text ... ``` 블록으로 ASCII 다이어그램)
+- 설계 선택의 이유: 왜 이 방법을 선택했는지, 대안 대비 장점
+{{figure_section}}""")
+
+INTEGRATED_PART_B = _INTEGRATED_PART_B_TEMPLATE.format(
+    format_rules=_FORMAT_RULES_INTEGRATED,
+    figure_section="",
+).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
 
 INTEGRATED_PART_C = (_INTEGRATED_BASE + """
 ## 📊 실험 (Experiments)
-(실험 설정, 주요 결과, ablation study)
+(실험 설정, 데이터셋, 주요 결과 테이블/수치, ablation study)
 
-## 🏁 결론 (Conclusion)
-(연구 요약, 한계점, 향후 연구)
+## 💪 강점과 약점 (Strengths & Weaknesses)
+(이 논문의 기여와 한계를 균형 있게 분석)
 
-## ⭐ 총평
-(이 논문의 전체적인 평가, 읽어야 할 독자층)""").format(format_rules=_FORMAT_RULES_INTEGRATED).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
+## 🏁 결론 및 향후 연구 (Conclusion & Future Work)
+(연구 요약, 한계점, 이 논문이 열어준 향후 연구 가능성)
+
+## ⭐ 총평 (Overall Assessment)
+(읽을 가치 평가 1-10점 + 이유, 추천 독자층, 핵심 takeaway 3가지)""").format(format_rules=_FORMAT_RULES_INTEGRATED).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
+
+
+_FIGURE_SECTION = """
+## 🖼️ Figure/Table 분석
+첨부된 Figure/Table을 하나씩 분석하세요:
+- 각 Figure/Table의 번호, 제목, 핵심 내용
+- 그래프: x축/y축 의미, 주요 트렌드, 비교 결과
+- 아키텍처 다이어그램: 구성 요소, 데이터 흐름
+- 결과 테이블: 비교 방법, 주요 수치, 제안 방법의 우위"""
 
 
 def _get_client() -> anthropic.Anthropic:
@@ -271,9 +299,17 @@ def analyze_paper(paper_data: dict, progress_callback=None) -> dict:
         pass2_result=results["pass2"],
         pass3_result=results["pass3"],
     )
+
+    # Figure 조건부: figures가 있으면 Figure 분석 섹션을 Part B에 삽입
+    figure_section = _FIGURE_SECTION if figures else ""
+    integrated_part_b = _INTEGRATED_PART_B_TEMPLATE.format(
+        format_rules=_FORMAT_RULES_INTEGRATED,
+        figure_section=figure_section,
+    ).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
+
     parts = {
         "A": INTEGRATED_PART_A.format(**fmt),
-        "B": INTEGRATED_PART_B.format(**fmt),
+        "B": integrated_part_b.format(**fmt),
         "C": INTEGRATED_PART_C.format(**fmt),
     }
     part_results = {}

@@ -61,7 +61,7 @@ def format_and_save(paper_data: dict, analysis: dict) -> str:
     meta_lines = [
         f"> **Source**: {source}  ",
         f"> **Analyzed**: {analyzed_at}  ",
-        f"> **Method**: Three-Pass Approach  ",
+        f"> **Method**: Three-Pass Approach (Integrated)  ",
     ]
     if arxiv_id:
         meta_lines.append(f"> **arXiv ID**: [{arxiv_id}](https://arxiv.org/abs/{arxiv_id})  ")
@@ -80,26 +80,6 @@ def format_and_save(paper_data: dict, analysis: dict) -> str:
 {meta_block}
 
 ---
-
-## 🔍 Pass 1: Quick Scan (개요 파악)
-
-{analysis['pass1']}
-
----
-
-## 📖 Pass 2: Structural Understanding (구조 파악)
-
-{analysis['pass2']}
-
----
-
-## 🧠 Pass 3: Deep Dive (심층 분석)
-
-{analysis['pass3']}
-
----
-
-## 📝 통합 리뷰 (Integrated Review)
 
 {analysis['integrated_review']}
 """
