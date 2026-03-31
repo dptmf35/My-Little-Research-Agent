@@ -30,6 +30,13 @@ CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "claude")
 CLAUDE_CC_TIMEOUT = int(os.environ.get("CLAUDE_CC_TIMEOUT", "600"))  # 초 (기본 10분)
 
 
+def _subprocess_env() -> dict:
+    """ANTHROPIC_API_KEY를 제거한 환경변수 반환. Claude.ai 구독 사용을 강제."""
+    env = os.environ.copy()
+    env.pop("ANTHROPIC_API_KEY", None)
+    return env
+
+
 def _call_claude_cc(prompt: str, figures: list = None) -> str:
     """
     `claude -p` subprocess로 Claude 호출.
@@ -45,10 +52,12 @@ def _call_claude_cc(prompt: str, figures: list = None) -> str:
         capture_output=True,
         text=True,
         timeout=CLAUDE_CC_TIMEOUT,
+        env=_subprocess_env(),
     )
     if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()[:500]
         raise RuntimeError(
-            f"claude CLI 오류 (exit {result.returncode}):\n{result.stderr[:500]}"
+            f"claude CLI 오류 (exit {result.returncode}):\n{detail}"
         )
     return result.stdout.strip()
 
@@ -90,10 +99,12 @@ def _call_claude_cc_multimodal(prompt: str, figures: list) -> str:
         capture_output=True,
         text=True,
         timeout=CLAUDE_CC_TIMEOUT,
+        env=_subprocess_env(),
     )
     if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip()[:500]
         raise RuntimeError(
-            f"claude CLI 멀티모달 오류 (exit {result.returncode}):\n{result.stderr[:500]}"
+            f"claude CLI 멀티모달 오류 (exit {result.returncode}):\n{detail}"
         )
     return result.stdout.strip()
 

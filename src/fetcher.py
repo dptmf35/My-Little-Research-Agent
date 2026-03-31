@@ -163,16 +163,20 @@ def fetch_paper(source: str, extract_figures: bool = True) -> dict:
 
         result["arxiv_id"] = arxiv_id
 
-        # Fetch metadata via arxiv library
-        search = arxiv.Search(id_list=[arxiv_id], max_results=1)
-        papers = list(search.results())
-        if papers:
-            paper_meta = papers[0]
-            result["title"] = paper_meta.title
-            result["authors"] = [str(a) for a in paper_meta.authors]
-            result["abstract"] = paper_meta.summary.replace("\n", " ")
-            result["published"] = paper_meta.published  # datetime
-            result["venue"] = getattr(paper_meta, "journal_ref", "") or ""
+        # Fetch metadata via arxiv library (optional - continue if rate limited)
+        try:
+            client = arxiv.Client(delay_seconds=3.0, num_retries=2)
+            search = arxiv.Search(id_list=[arxiv_id], max_results=1)
+            papers = list(client.results(search))
+            if papers:
+                paper_meta = papers[0]
+                result["title"] = paper_meta.title
+                result["authors"] = [str(a) for a in paper_meta.authors]
+                result["abstract"] = paper_meta.summary.replace("\n", " ")
+                result["published"] = paper_meta.published  # datetime
+                result["venue"] = getattr(paper_meta, "journal_ref", "") or ""
+        except Exception as e:
+            print(f"  메타데이터 가져오기 실패 (무시하고 계속): {e}")
 
         # Download the PDF
         pdf_url = f"https://arxiv.org/pdf/{arxiv_id}"
