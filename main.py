@@ -63,6 +63,11 @@ def parse_args():
         action="store_true",
         help="Skip figure extraction and Vision analysis (faster, uses fewer tokens)",
     )
+    parser.add_argument(
+        "--claude-code",
+        action="store_true",
+        help="Use claude CLI subprocess instead of API key (requires Claude Code installation)",
+    )
     return parser.parse_args()
 
 
@@ -79,10 +84,15 @@ def get_source_interactively() -> str:
     return source
 
 
-def run(source: str, no_vision: bool = False):
+def run(source: str, no_vision: bool = False, use_claude_code: bool = False):
     from src.fetcher import fetch_paper
-    from src.analyzer import analyze_paper
     from src.formatter import format_and_save
+
+    if use_claude_code:
+        from src.analyzer_cc import analyze_paper
+        console.print("[dim]모드: Claude Code CLI (API 키 불필요)[/dim]")
+    else:
+        from src.analyzer import analyze_paper
 
     # --- Step 1: Fetch paper ---
     console.print(f"\n[bold]📥 논문 가져오는 중...[/bold] [dim]{source}[/dim]")
@@ -180,7 +190,7 @@ def main():
     if not source:
         source = get_source_interactively()
 
-    run(source, no_vision=args.no_vision)
+    run(source, no_vision=args.no_vision, use_claude_code=args.claude_code)
 
 
 if __name__ == "__main__":

@@ -9,6 +9,8 @@
 
 ## 빠른 시작
 
+### API 키 방식 (기본)
+
 ```bash
 # 1. 의존성 설치
 pip install -r requirements.txt
@@ -22,6 +24,18 @@ python3 main.py https://arxiv.org/abs/1706.03762
 
 # Vision 분석 없이 실행 (토큰 절약, 속도 향상)
 python3 main.py https://arxiv.org/abs/1706.03762 --no-vision
+```
+
+### Claude Code 방식 (API 키 불필요)
+
+Claude Code가 설치되어 있다면 API 키 없이 Claude Code 구독으로 실행할 수 있습니다.
+
+```bash
+# API 키 설정 없이 바로 실행
+python3 main.py --claude-code https://arxiv.org/abs/1706.03762
+
+# Vision 없이
+python3 main.py --claude-code --no-vision https://arxiv.org/abs/1706.03762
 ```
 
 결과는 `reviews/arxiv_1706.03762.md` 에 저장됩니다.
@@ -79,7 +93,8 @@ My-Little-Research-Agent/
 ├── main.py              ← CLI 진입점
 ├── src/
 │   ├── fetcher.py       ← PDF 수집, 텍스트/Figure 추출
-│   ├── analyzer.py      ← Three-Pass Claude 분석 엔진
+│   ├── analyzer.py      ← Three-Pass 분석 엔진 (API 키 방식)
+│   ├── analyzer_cc.py   ← Three-Pass 분석 엔진 (Claude Code CLI 방식)
 │   └── formatter.py     ← 마크다운 포맷 & 저장
 ├── reviews/             ← 결과 저장 폴더
 ├── requirements.txt
@@ -197,6 +212,7 @@ My-Little-Research-Agent/
 | 옵션 | 설명 |
 |:-----|:-----|
 | `--no-vision` | Figure 추출 및 Vision 분석 건너뜀. 토큰 절약 및 Rate Limit 방지에 유용. |
+| `--claude-code` | `claude` CLI subprocess 방식으로 실행. API 키 없이 Claude Code 구독 활용. |
 
 ```
 ╭─────────────────────────────────╮
@@ -249,3 +265,6 @@ ANTHROPIC_API_KEY=sk-ant-api03-xxxxxxxx...
 ```
 
 API 키는 [Anthropic Console](https://console.anthropic.com/)에서 발급.
+
+> `--claude-code` 모드 사용 시 `ANTHROPIC_API_KEY` 불필요.
+> 선택적으로 `CLAUDE_CC_TIMEOUT=600` (초, 기본값)으로 타임아웃을 조정할 수 있습니다.
