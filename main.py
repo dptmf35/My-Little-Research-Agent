@@ -29,11 +29,15 @@ load_dotenv()
 
 console = Console()
 
-def _print_banner():
+def _print_banner(model: str = "claude"):
+    if model == "claude":
+        subtitle = "Three-Pass Approach | Powered by Claude"
+    else:
+        subtitle = f"Three-Pass Approach | Powered by Ollama [{model}]"
     console.print(Panel(
         Align.center(
             "[bold cyan]🔬 AI Research Paper Analyzer[/bold cyan]\n"
-            "[cyan]Three-Pass Approach | Powered by Claude[/cyan]"
+            f"[cyan]{subtitle}[/cyan]"
         ),
         border_style="cyan",
         padding=(0, 4),
@@ -68,6 +72,16 @@ def parse_args():
         action="store_true",
         help="Use claude CLI subprocess instead of API key (requires Claude Code installation)",
     )
+    parser.add_argument(
+        "--model",
+        default="claude",
+        metavar="MODEL",
+        help=(
+            "사용할 모델 선택: 'claude' (기본값, Anthropic API), "
+            "또는 Ollama 모델명 (예: 'gemma4', 'gemma4:4b', 'gemma3:12b'). "
+            "Ollama 사용 시 로컬에서 ollama serve 실행 필요."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -84,13 +98,24 @@ def get_source_interactively() -> str:
     return source
 
 
-def run(source: str, no_vision: bool = False, use_claude_code: bool = False):
+def run(source: str, no_vision: bool = False, use_claude_code: bool = False, model: str = "claude"):
+    import functools
     from src.fetcher import fetch_paper
     from src.formatter import format_and_save
 
     if use_claude_code:
         from src.analyzer_cc import analyze_paper
         console.print("[dim]모드: Claude Code CLI (API 키 불필요)[/dim]")
+    elif model != "claude":
+        from src.analyzer_ollama import analyze_paper as _ollama_analyze, resolve_model_name, check_connection
+        ollama_model = resolve_model_name(model)
+        console.print(f"[dim]모드: Ollama 로컬 모델 [{ollama_model}][/dim]")
+        try:
+            check_connection(ollama_model)
+        except RuntimeError as e:
+            console.print(f"[red]Ollama 연결 오류:[/red]\n{e}")
+            sys.exit(1)
+        analyze_paper = functools.partial(_ollama_analyze, model=ollama_model)
     else:
         from src.analyzer import analyze_paper
 
@@ -182,15 +207,14 @@ def run(source: str, no_vision: bool = False, use_claude_code: bool = False):
 
 
 def main():
-    _print_banner()
-
     args = parse_args()
-    source = args.source
+    _print_banner(model=args.model if not args.claude_code else "claude")
 
+    source = args.source
     if not source:
         source = get_source_interactively()
 
-    run(source, no_vision=args.no_vision, use_claude_code=args.claude_code)
+    run(source, no_vision=args.no_vision, use_claude_code=args.claude_code, model=args.model)
 
 
 if __name__ == "__main__":

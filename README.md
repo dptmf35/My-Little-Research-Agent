@@ -38,6 +38,30 @@ python3 main.py --claude-code https://arxiv.org/abs/1706.03762
 python3 main.py --claude-code --no-vision https://arxiv.org/abs/1706.03762
 ```
 
+### Gemma 4 방식 (완전 로컬, 무료)
+
+API 키 없이 로컬 GPU로 실행합니다. [Ollama](https://ollama.com)를 사용합니다.
+
+```bash
+# 1. Ollama 설치 (이미 설치되어 있으면 건너뜀)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# 2. Gemma 4 모델 다운로드
+ollama pull gemma4:e4b
+
+# 3. 실행 (Ollama 서비스는 설치 시 자동 시작)
+python3 main.py --model gemma4 https://arxiv.org/abs/1706.03762
+
+# Vision 없이 (텍스트 분석만)
+python3 main.py --model gemma4 --no-vision https://arxiv.org/abs/1706.03762
+
+# 다른 Ollama 모델 직접 지정도 가능
+python3 main.py --model gemma3:12b https://arxiv.org/abs/1706.03762
+```
+
+> `--model gemma4`는 `gemma4:e4b`로 자동 변환됩니다.  
+> Ollama 서버 주소 변경 시 `OLLAMA_HOST=http://your-server:11434` 환경 변수로 설정.
+
 결과는 `reviews/arxiv_1706.03762.md` 에 저장됩니다.
 
 ---
@@ -90,13 +114,14 @@ reviews/
 
 ```
 My-Little-Research-Agent/
-├── main.py              ← CLI 진입점
+├── main.py                  ← CLI 진입점
 ├── src/
-│   ├── fetcher.py       ← PDF 수집, 텍스트/Figure 추출
-│   ├── analyzer.py      ← Three-Pass 분석 엔진 (API 키 방식)
-│   ├── analyzer_cc.py   ← Three-Pass 분석 엔진 (Claude Code CLI 방식)
-│   └── formatter.py     ← 마크다운 포맷 & 저장
-├── reviews/             ← 결과 저장 폴더
+│   ├── fetcher.py           ← PDF 수집, 텍스트/Figure 추출
+│   ├── analyzer.py          ← Three-Pass 분석 엔진 (Anthropic API 방식)
+│   ├── analyzer_cc.py       ← Three-Pass 분석 엔진 (Claude Code CLI 방식)
+│   ├── analyzer_ollama.py   ← Three-Pass 분석 엔진 (Ollama 로컬 모델 방식)
+│   └── formatter.py         ← 마크다운 포맷 & 저장
+├── reviews/                 ← 결과 저장 폴더
 ├── requirements.txt
 └── .env.example
 ```
@@ -181,7 +206,13 @@ My-Little-Research-Agent/
 | Pass 3 | 6,144 |
 | 통합 리뷰 (파트당) | 4,096 × 3개 병렬 |
 
-**사용 모델:** `claude-sonnet-4-6`
+**사용 모델:**
+
+| 방식 | 모델 |
+|:-----|:-----|
+| 기본 (API 키) | `claude-sonnet-4-6` |
+| Claude Code | Claude Code 구독 모델 |
+| Ollama (`--model gemma4`) | `gemma4:e4b` |
 
 ---
 
@@ -213,6 +244,7 @@ My-Little-Research-Agent/
 |:-----|:-----|
 | `--no-vision` | Figure 추출 및 Vision 분석 건너뜀. 토큰 절약 및 Rate Limit 방지에 유용. |
 | `--claude-code` | `claude` CLI subprocess 방식으로 실행. API 키 없이 Claude Code 구독 활용. |
+| `--model MODEL` | 사용할 모델 선택. `claude` (기본값) 또는 Ollama 모델명 (`gemma4`, `gemma3:12b` 등). |
 
 ```
 ╭─────────────────────────────────╮
@@ -248,6 +280,7 @@ My-Little-Research-Agent/
 | 라이브러리 | 용도 |
 |:----------|:-----|
 | `anthropic` | Claude API 호출 (텍스트 + Vision) |
+| `ollama` | Ollama 로컬 모델 호출 (Gemma 4 등) |
 | `pymupdf` | PDF 텍스트 및 Figure 이미지 추출 |
 | `arxiv` | arXiv 메타데이터(제목, 저자, 초록, 게재일, 학회) 가져오기 |
 | `requests` | PDF URL 다운로드 |
