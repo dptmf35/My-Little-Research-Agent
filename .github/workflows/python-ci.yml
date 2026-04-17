@@ -31,8 +31,8 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
     # 4. 테스트를 실행한다.
-    - name: Run main script with API Key 
+    - name: Run main script with API Key
       env:
-      	ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
         python main.py
