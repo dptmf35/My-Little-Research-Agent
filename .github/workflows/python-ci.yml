@@ -30,7 +30,9 @@ jobs:
         # requirements.txt 파일이 있다면 주석을 해제하여 사용한다.
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-    # 4. 단위 테스트를 실행한다.
-    - name: Run Tests with pytest
+    # 4. 테스트를 실행한다.
+    - name: Run main script with API Key 
+      env:
+      	ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
-        pytest
+        python main.py
