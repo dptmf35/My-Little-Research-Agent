@@ -1,0 +1,36 @@
+name: Python AI Agent CI
+
+# 메인 브랜치로 Push되거나 Pull Request가 열릴 때 실행된다.
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04 # 최신 우분투 환경
+
+    steps:
+    # 1. 원격 저장소의 코드를 가상 서버로 가져온다.
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # 2. 파이썬 환경을 세팅한다. 
+    - name: Set up Python 3.13
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.13"
+
+    # 3. 필요한 패키지 및 테스트 도구를 설치한다.
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest numpy
+        # requirements.txt 파일이 있다면 주석을 해제하여 사용한다.
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+    # 4. 단위 테스트를 실행한다.
+    - name: Run Tests with pytest
+      run: |
+        pytest
