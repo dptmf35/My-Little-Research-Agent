@@ -1,11 +1,13 @@
 name: Python AI Agent CI
 
-# 메인 브랜치로 Push되거나 Pull Request가 열릴 때 실행된다.
+# 코드를 푸시할 때 실행되지 않고, 버튼을 누를 때만 수동으로 실행된다.
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch: 
+# 메인 브랜치로 Push되거나 Pull Request가 열릴 때 실행된다.
+#  push:
+#    branches: [ "main" ]
+#  pull_request:
+#    branches: [ "main" ]
 
 jobs:
   build-and-test:
@@ -35,4 +37,4 @@ jobs:
       env:
         ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       run: |
-        python main.py
+        python main.py --no-vision https://arxiv.org/pdf/1706.03762
