@@ -28,6 +28,7 @@ from src.analyzer import (
 
 CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "claude")
 CLAUDE_CC_TIMEOUT = int(os.environ.get("CLAUDE_CC_TIMEOUT", "600"))  # 초 (기본 10분)
+CLAUDE_CC_MODEL = "opus"  # claude CLI 별칭: 항상 최신 Opus 모델 사용
 
 
 def _subprocess_env() -> dict:
@@ -47,8 +48,11 @@ def _call_claude_cc(prompt: str, figures: list = None) -> str:
     if figures:
         return _call_claude_cc_multimodal(prompt, figures)
 
+    # 프롬프트를 argv로 넘기면 논문 전문 길이에서 OS의 ARG_MAX를 넘기 쉬우므로
+    # stdin으로 전달한다 (`claude -p`는 프롬프트 인자가 없으면 stdin에서 읽는다).
     result = subprocess.run(
-        [CLAUDE_BIN, "-p", prompt, "--output-format", "text"],
+        [CLAUDE_BIN, "-p", "--model", CLAUDE_CC_MODEL, "--output-format", "text"],
+        input=prompt,
         capture_output=True,
         text=True,
         timeout=CLAUDE_CC_TIMEOUT,
@@ -84,16 +88,21 @@ def _call_claude_cc_multimodal(prompt: str, figures: list) -> str:
             "text": f"[Figure {i + 1} - page {fig['page']}, {fig['width']}×{fig['height']}px]",
         })
 
+    # stream-json 입력을 쓰려면 CLI가 --output-format stream-json --verbose 조합을
+    # 요구하고(text 출력 불가), 입력 라인 끝에 개행이 없으면 아무 출력 없이 조용히
+    # 종료해버린다 (claude CLI 2.1.201 기준).
     message_line = json.dumps({
         "type": "user",
         "message": {"role": "user", "content": content},
-    })
+    }) + "\n"
 
     result = subprocess.run(
         [
             CLAUDE_BIN, "-p",
+            "--model", CLAUDE_CC_MODEL,
             "--input-format", "stream-json",
-            "--output-format", "text",
+            "--output-format", "stream-json",
+            "--verbose",
         ],
         input=message_line,
         capture_output=True,
@@ -106,7 +115,21 @@ def _call_claude_cc_multimodal(prompt: str, figures: list) -> str:
         raise RuntimeError(
             f"claude CLI 멀티모달 오류 (exit {result.returncode}):\n{detail}"
         )
-    return result.stdout.strip()
+    return _extract_result_text(result.stdout)
+
+
+def _extract_result_text(stream_json_output: str) -> str:
+    """stream-json 출력(JSONL)에서 최종 assistant 응답 텍스트를 추출."""
+    for line in stream_json_output.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        event = json.loads(line)
+        if event.get("type") == "result":
+            if event.get("is_error"):
+                raise RuntimeError(f"claude CLI 멀티모달 결과 오류: {event}")
+            return (event.get("result") or "").strip()
+    raise RuntimeError("claude CLI 멀티모달 응답에서 result 이벤트를 찾지 못함")
 
 
 def analyze_paper(paper_data: dict, progress_callback=None) -> dict:
@@ -177,14 +200,17 @@ def analyze_paper(paper_data: dict, progress_callback=None) -> dict:
         )
 
     parts = {
-        "A": INTEGRATED_PART_A.format(**fmt),
+        "A": INTEGRATED_PART_A.format(**fmt, header_text=text[:2000]),
         "B": INTEGRATED_PART_B.format(**fmt),
         "C": part_c_prompt,
     }
+    # Part C는 최종 Figure/Table 분석을 다시 쓰므로, Pass 2 요약의 재서술이 아니라
+    # 실제 이미지를 근거로 삼도록 figures를 함께 전달한다.
+    part_figures = {"C": figures} if figures else {}
     part_results = {}
     with ThreadPoolExecutor(max_workers=3) as executor:
         futures = {
-            executor.submit(_call_claude_cc, prompt): key
+            executor.submit(_call_claude_cc, prompt, figures=part_figures.get(key)): key
             for key, prompt in parts.items()
         }
         for future in as_completed(futures):

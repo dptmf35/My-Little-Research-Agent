@@ -82,8 +82,10 @@ Three-Pass Approach 2단계의 핵심은 **그림, 도표, 그래프를 실제�
 - 🔗 Related Work: 기존 연구들과의 관계
 - 💡 핵심 아이디어: 논문의 핵심 제안
 - 🔬 방법론 개요: 어떤 방식으로 문제를 해결했는지
-- 🖼️ Figure/Table 분석: **첨부된 모든 이미지를 하나씩 설명하세요**
-  - 각 Figure/Table의 번호(추정), 제목, 내용을 상세히 기술
+- 🖼️ Figure/Table 분석: **첨부된 이미지만** 하나씩 설명하세요 (첨부된 이미지 수는 논문의 전체 Figure/Table 수보다 적을 수 있습니다)
+  - 각 이미지는 페이지 번호와 함께 캡션되어 있습니다. 그 페이지 번호와 주변 텍스트를 근거로 어떤 Figure/Table인지 판단하고, 확신이 없으면 "번호 불확실"이라고 명시하세요.
+  - 이미지에서 실제로 보이지 않는 세부사항(정확한 색상, confidence 점수, 라벨 등)을 추측하거나 지어내지 마세요.
+  - 본문에 언급되지만 첨부되지 않은 Figure/Table은 "이미지 미첨부"라고 표시하고 텍스트 근거만으로 간단히 언급하세요.
   - 그래프라면: x축/y축 의미, 비교 대상, 주요 수치 및 트렌드
   - 아키텍처 다이어그램이라면: 구성 요소, 데이터 흐름, 핵심 설계
   - 결과 테이블이라면: 비교 방법들, 주요 수치, 제안 방법의 우위
@@ -131,11 +133,14 @@ Pass 3 분석: {{pass3_result}}
 
 # 병렬 실행할 3개 파트
 INTEGRATED_PART_A = (_INTEGRATED_BASE + """
+참고용 원문 첫 부분 (제목/저자/소속 확인용 - 그대로 복사하지 말고 여기서 정확한 사실만 추출하세요):
+{{header_text}}
+
 ## 📋 논문 기본 정보
-(제목, 저자, 발표 연도/학회/저널, arXiv ID 등)
+(제목, 저자, 발표 연도/학회/저널, arXiv ID 등. 위 원문 첫 부분과 참고 자료에서 실제로 확인되는 사실만 기술하고, 확인할 수 없는 항목은 추측하지 말고 "확인 불가"라고 명시하세요)
 
 ## 💡 핵심 아이디어 (Key Idea)
-(이 논문의 핵심 기여와 독창성 - 문제 정의, 해결 방법, 왜 중요한지)""").format(format_rules=_FORMAT_RULES_INTEGRATED).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}")
+(이 논문의 핵심 기여와 독창성 - 문제 정의, 해결 방법, 왜 중요한지)""").format(format_rules=_FORMAT_RULES_INTEGRATED).replace("{{pass1_result}}", "{pass1_result}").replace("{{pass2_result}}", "{pass2_result}").replace("{{pass3_result}}", "{pass3_result}").replace("{{header_text}}", "{header_text}")
 
 INTEGRATED_PART_B = (_INTEGRATED_BASE + """
 ## 💪 강점과 약점 (Strengths & Weaknesses)
@@ -178,8 +183,10 @@ INTEGRATED_PART_C_FALLBACK = (_INTEGRATED_BASE + """
 
 _FIGURE_SECTION = """
 ## 🖼️ Figure/Table 분석
-첨부된 Figure/Table을 하나씩 분석하세요:
-- 각 Figure/Table의 번호, 제목, 핵심 내용
+첨부된 이미지만 하나씩 분석하세요. 첨부된 이미지 수는 논문에 등장하는 전체 Figure/Table 수보다 적을 수 있습니다.
+- 각 이미지는 페이지 번호와 함께 캡션되어 있습니다. 그 페이지 번호와 주변 본문 텍스트를 근거로만 어떤 Figure/Table인지 판단하고, 확신이 없으면 "정확한 Figure 번호 불확실"이라고 명시하세요.
+- 본문에서 언급되지만 첨부되지 않은 Figure/Table은 이미지 기반으로 서술하지 말고 "이미지 미첨부 - 본문 텍스트 기반 설명"이라고 표시한 뒤 텍스트 근거만으로 간단히 요약하세요.
+- 이미지에서 실제로 보이지 않는 세부사항(정확한 색상, confidence 점수, 라벨 등)을 절대 추측하거나 지어내지 마세요. 이미지에서 직접 확인한 내용과 본문 텍스트 근거를 구분해서 서술하세요.
 - 그래프: x축/y축 의미, 주요 트렌드, 비교 결과
 - 아키텍처 다이어그램: 구성 요소, 데이터 흐름
 - 결과 테이블: 비교 방법, 주요 수치, 제안 방법의 우위"""
@@ -347,14 +354,17 @@ def analyze_paper(paper_data: dict, progress_callback=None) -> dict:
         )
 
     parts = {
-        "A": INTEGRATED_PART_A.format(**fmt),
+        "A": INTEGRATED_PART_A.format(**fmt, header_text=text[:2000]),
         "B": INTEGRATED_PART_B.format(**fmt),
         "C": part_c_prompt,
     }
+    # Part C는 최종 Figure/Table 분석을 다시 쓰므로, Pass 2 요약의 재서술이 아니라
+    # 실제 이미지를 근거로 삼도록 figures를 함께 전달한다.
+    part_figures = {"C": figures} if figures else {}
     part_results = {}
     with ThreadPoolExecutor(max_workers=3) as executor:
         futures = {
-            executor.submit(_call_claude, client, prompt, MAX_TOKENS["integrated_part"]): key
+            executor.submit(_call_claude, client, prompt, MAX_TOKENS["integrated_part"], figures=part_figures.get(key)): key
             for key, prompt in parts.items()
         }
         for future in as_completed(futures):
